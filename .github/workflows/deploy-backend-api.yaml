@@ -1,0 +1,41 @@
+name: 'main'
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend-api/**'
+      - '.github/workflows/deploy-backend-api.yaml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Docker image
+        run: docker build -t backend-api:latest ./backend-api
+
+      - name: Save Docker image as tar file
+        run: docker save -o backend-api.tar backend-api:latest
+
+      - name: Transfer Docker image to remote server
+        run: |
+          sshpass -p ${{ secrets.REMOTE_SERVER_PASSWORD }} scp -o StrictHostKeyChecking=no backend-api.tar ${{ vars.REMOTE_SERVER_USERNAME }}@${{ vars.REMOTE_SERVER_ADDRESS }}:${{ vars.REMOTE_SERVER_PATH }}
+
+      - name: Load Docker image on remote server
+        run: |
+          sshpass -p ${{ secrets.REMOTE_SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ vars.REMOTE_SERVER_USERNAME }}@${{ vars.REMOTE_SERVER_ADDRESS }} << 'ENDSSH'
+          docker load -i ${{ vars.REMOTE_SERVER_PATH }}/backend-api.tar
+          ENDSSH
+
+      - name: Transfer Docker Compose file to remote server
+        run: |
+          sshpass -p ${{ secrets.REMOTE_SERVER_PASSWORD }} scp -o StrictHostKeyChecking=no ./backend-api/docker-compose.yaml ${{ vars.REMOTE_SERVER_USERNAME }}@${{ vars.REMOTE_SERVER_ADDRESS }}:${{ vars.REMOTE_SERVER_PATH }}
+      
+      - name: Deploy Docker containers using Docker Compose on remote server
+        run: |
+          sshpass -p ${{ secrets.REMOTE_SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ vars.REMOTE_SERVER_USERNAME }}@${{ vars.REMOTE_SERVER_ADDRESS }} << 'ENDSSH'
+          docker compose -f ${{ vars.REMOTE_SERVER_PATH }}/docker-compose.yaml up -d
+          ENDSSH

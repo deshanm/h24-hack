@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  app:
+    container_name: backend-api
+    image: backend-api:latest  # Use the existing image instead of building
+    restart: always
+    ports:
+      - "7005:7005"
