@@ -60,16 +60,17 @@ class WebsiteScraper:
             for tag in html.find_all(tag_name):
                 tag.decompose()
 
+        footer_div_to_remove = html.find('div', {'data-corgi-component': 'footer-link-section'})
+        if footer_div_to_remove:
+            footer_div_to_remove.extract()
+
+        header_div_to_remove = html.find('div', {'data-corgi-component': 'global-section-header-navigation'})
+        if header_div_to_remove:
+            header_div_to_remove.extract()
+
         # Remove all attributes except 'alt' for 'img' and 'href' for 'a'
         for tag in html.find_all(True):
-            if tag.name == "img":
-                tag.attrs = {key: value for key, value in tag.attrs.items() if key == "alt"}
-            elif tag.name == "a":
-                tag.attrs = {
-                    key: value for key, value in tag.attrs.items() if key == "href"
-                }
-            else:
-                tag.attrs = {}
+             tag.attrs = {}
 
         # Truncate href attributes to 60 characters
         for a_tag in html.find_all('a', href=True):
@@ -85,38 +86,13 @@ class WebsiteScraper:
             if (not tag.contents or str(tag.get_text()).strip() == "") and tag.name != "br":
                 tag.decompose()
 
-        # Unwrap unnecessary divs
-        for div in html.find_all("div"):
-            if len(div.contents) == 1 and div.parent and div.name != "body":
-                child = div.find()
-                if child and child.name != "div":
-                    div.unwrap()
-
-        # Flatten nested divs
-        for div in html.find_all("div"):
-            if all(
-                is_only_whitespace(child) or child.name == "div" for child in div.children
-            ):
-                div.unwrap()
-
+      
         # Remove empty elements
         for element in html.find_all():
             if not element.get_text().strip():
                 element.decompose()
-        
-         # Normalize whitespace in text nodes
-        for text_node in html.find_all(text=True):
-            if isinstance(text_node, NavigableString):
-                normalized_text = normalize_whitespace(text_node)
-                text_node.replace_with(normalized_text)
-
-        # Convert the cleaned BeautifulSoup object back to a string
-        clean = str(html)
-
-        # Remove whitespace between tags (if still needed after text normalization)
-        clean = re.sub(r'>\s+<', '><', clean)
-
-        return clean
+    
+        return html
 
     def get_url_path(self, url: str):
         parsed_url = urlsplit(url)
@@ -149,8 +125,6 @@ class WebsiteScraper:
         canonical_link = self.html.find("link", rel="canonical")
         if canonical_link:
             meta_data["canonical"] = canonical_link.get("href")
-
-        return meta_data
 
         return meta_data
 
@@ -198,4 +172,12 @@ class WebsiteScraper:
         comments = soup.findAll(text=lambda text: isinstance(text, Comment))
         for comment in comments:
             comment.extract()
+
+    def get_text(self):
+        # Remove all HTML comment elements
+        element = self.clean_html.find('body')
+        #get_text with strip set to true
+        text_content = element.get_text()
+
+        return text_content
     
